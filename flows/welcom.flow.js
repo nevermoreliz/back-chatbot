@@ -1,59 +1,87 @@
 const { addKeyword, EVENTS } = require("@bot-whatsapp/bot")
-const { delay } = require("@whiskeysockets/baileys")
-const ChatGPTClass = require("../provider/agents/chatgpt.class")
-const { PROMP } = require("../prompts/prompt")
+const { run } = require("../provider/agents/openai.class")
 
-const ChatGPTInstance = new ChatGPTClass()
+// Tiempo de espera en milisegundos (1 minuto)
+const TIMEOUT_DURATION = 30000
 
+// Variable global para almacenar el ID del temporizador actual
+let currentTimeoutId = null;
 
-const flowConfirmar = addKeyword('si confirmo').addAnswer('Continuamos con tu Reserva')
-
-
-/** 
- * flujo de bienvenida
- * 
- * const A = obligatorio: un texto "hola", Array['hola','como estas']
- * const B = opcional: es un objeto {media, delay, capture, buttons}
- * const C = opcional: es una funcion callback function!
- * const D = opcional: es un array de flujos hijos!
- */
-module.exports = addKeyword('hola')
-    .addAnswer(
-        [
-            '🙌 Hola bienvenido.',
-            ''
-        ],
-        null,
-        async () => {
-            await ChatGPTInstance.handleMsgChatGPT(PROMP)
+module.exports = addKeyword(EVENTS.WELCOME)
+.addAction(async (ctx, { flowDynamic, state, endFlow }) => {
+    try {
+        // Cancelar cualquier temporizador existente
+        if (currentTimeoutId) {
+            clearTimeout(currentTimeoutId);
+            console.log("[TIMEOUT]: Temporizador anterior cancelado debido a nueva consulta");
         }
-    )
-    .addAnswer(
-        [
-            'Soy Nova tu *asistente virtual de Posgrado UPEA*.',
-            'Gracias por comunicarte conmigo.',
-            '',
-            // 'Pregunta lo que Quieras?'
-            'para cuando quieres reservar la cita?'
-        ],
-        { capture: true },
-        async (ctx, { flowDynamic, fallBack }) => {
 
-            /**
-             * lo que la persona escribe esta en ctx.body
-             */
+        // Obtener el historial actual o inicializar un array vacío
+        const currentState = await state.getMyState() || {}
+        const history = currentState.history || []
+        const name = ctx?.pushName ?? ""
 
-            const response = await ChatGPTInstance.handleMsgChatGPT(ctx.body)
+        // Registrar mensaje del usuario
+        history.push({
+            role: "user",
+            content: ctx.body
+        })
 
-            // ya tengo la respuesta
-            const message = response.text
-            /**
-             * fallBack : es como un ciclo
-             */
-            if (ctx.body.toUpperCase() !== 'si confirmo') {
+        // Crear una promesa que se resuelve después del tiempo de espera
+        const timeoutPromise = new Promise((resolve) => {
+            currentTimeoutId = setTimeout(async () => {
+                console.log(`[TIMEOUT]: No se recibió respuesta en ${TIMEOUT_DURATION/1000} segundos`);
+                await flowDynamic("Parece que no hay actividad. Si necesitas ayuda más tarde, puedes iniciar una nueva conversación. ¡Hasta pronto!");
+                
+                // Limpiar el historial antes de finalizar el flujo
+                await state.update({
+                    history: [] // Reiniciar el historial a un array vacío
+                });
+                
+                resolve('timeout');
+                currentTimeoutId = null;
+                return endFlow();
+            }, TIMEOUT_DURATION);
+        });
 
-                return fallBack(message)
-            }
-        },
-        [flowConfirmar]
-    )
+        // Crear una promesa para la respuesta de OpenAI
+        const responsePromise = run(name, history);
+
+        // Usar Promise.race para ver cuál termina primero
+        const result = await Promise.race([
+            responsePromise,
+            timeoutPromise
+        ]);
+
+        // Si el resultado es 'timeout', terminar el flujo
+        if (result === 'timeout') {
+            console.log("[TIMEOUT]: Finalizando flujo por inactividad");
+            return endFlow();
+        }
+
+        // Si llegamos aquí, significa que obtuvimos una respuesta antes del timeout
+        const largeResponse = result;
+        
+        const chunks = largeResponse.split(/(?<!\d)\.\s+/g);
+
+        for (const chunk of chunks) {
+            await flowDynamic(chunk)
+        }
+
+        history.push({
+            role: "assistant",
+            content: largeResponse
+        })
+
+        await state.update({
+            history,
+            lastActivity: Date.now()
+        })
+
+    } catch (error) {
+        console.log(`[ERROR]: `, error);
+        await flowDynamic("Lo siento, ha ocurrido un error. Por favor, intenta nuevamente más tarde.");
+        return endFlow();
+    }
+})
+

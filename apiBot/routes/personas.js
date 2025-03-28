@@ -11,6 +11,9 @@ router.post("/", [authMiddleware, checkRol(['superadmin']), validatorCreatePerso
 router.put("/:id", [authMiddleware, checkRol(['superadmin','agente'])],validatorUpdatePersona, updatePersona);
 router.get("/profile/:img", [authMiddleware, checkRol(['superadmin','agente'])], retornarImagen);
 
+// enlaces para database
+router.post("/datatable", authMiddleware, checkRol(['superadmin']), getPersonas);
+
 
 
 module.exports = router
