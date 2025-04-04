@@ -1,6 +1,7 @@
 const OpenAI = require("openai");
 const { generatePrompt } = require("../../prompts/promt.incial");
-const { generatePromptBienvenida } = require("../../prompts/prompt.bienvenida");
+const { generatePromptBienvenida, generatePromptDecision } = require("../../prompts/prompt.bienvenida");
+
 
 
 const openai = new OpenAI({
@@ -28,7 +29,7 @@ const run = async (name, history) => {
             },
             ...history
         ],
-        model: "deepseek/deepseek-chat-v3-0324:free",
+        model: "deepseek/deepseek-r1-distill-llama-70b:free",
         temperature: 1,
         max_tokens: 800,
         top_p: 1,
@@ -43,9 +44,9 @@ const run = async (name, history) => {
  * @param {Array} history
  * @returns {Promise<string>}
  */
-const runDetermine = async (history) => {
+const runDetermineFlow = async (name, history) => {
 
-    const promtp = generatePromptDetermine()
+    const promtp = generatePromptDecision(name)
     const response = await openai.chat.completions.create({
         // model: "gpt-3.5-turbo",
         messages: [
@@ -55,7 +56,8 @@ const runDetermine = async (history) => {
             },
             ...history
         ],
-        model: "qwen/qwq-32b:free",
+        // model: "qwen/qwq-32b:free",
+        model: "deepseek/deepseek-r1-distill-llama-70b:free",
         temperature: 1,
         max_tokens: 800,
         top_p: 1,
@@ -67,6 +69,6 @@ const runDetermine = async (history) => {
     return response.choices.length > 0 && response.choices[0].message.content ? response.choices[0].message.content : 'unknown'
 }
 
-module.exports = { run, runDetermine }
+module.exports = { run, runDetermineFlow }
 
 
