@@ -1,94 +1,64 @@
 const { addKeyword, EVENTS } = require("@bot-whatsapp/bot")
 const { run, runDetermineFlow } = require("../provider/agents/openai.class");
-const { generatePromptDecision } = require("../prompts/prompt.bienvenida");
 
-
-// Tiempo de espera en milisegundos (1 minuto)
-const TIMEOUT_DURATION = 60000
-
-// Variable global para almacenar el ID del temporizador actual
-let currentTimeoutId = null;
+const flowProgramas = require("./programas.flow");
 
 module.exports = addKeyword(EVENTS.WELCOME)
-    .addAction(async (ctx, { flowDynamic, state, endFlow }) => {
+    .addAction(async (ctx, { flowDynamic, state, endFlow, gotoFlow }) => {
         try {
-            // Cancelar cualquier temporizador existente
-            if (currentTimeoutId) {
-                clearTimeout(currentTimeoutId);
-                console.log("[TIMEOUT]: Temporizador anterior cancelado debido a nueva consulta");
-            }
 
             // Obtener el historial actual o inicializar un array vacío
             const currentState = await state.getMyState() || {}
             const history = currentState.history || []
-            const name = ctx?.pushName ?? ""
 
-            // Registrar mensaje del usuario
-            history.push({
-                role: "user",
-                content: ctx.body
-            })
+            const promtp = await runDetermineFlow(ctx.body, history)
+            
+            console.log(`[PROMPT DETERMINAR]: `, promtp);
 
-            // Crear una promesa que se resuelve después del tiempo de espera
-            const timeoutPromise = new Promise((resolve) => {
-                currentTimeoutId = setTimeout(async () => {
-                    console.log(`[TIMEOUT]: No se recibió respuesta en ${TIMEOUT_DURATION / 1000} segundos`);
-                    
-                    await flowDynamic("Parece que no hay actividad. Si necesitas ayuda más tarde, puedes iniciar una nueva conversación. ¡Hasta pronto!");
+            if (promtp.toLowerCase().includes('unknown')) {
+                await flowDynamic('Iniciando asistente general...');
+                // Usamos gotoFlow y luego finalizamos este flujo
 
-                    // Limpiar el historial antes de finalizar el flujo
-                    await state.update({
-                        history: [] // Reiniciar el historial a un array vacío
-                    });
+                console.log('[FLUJO BIENVENIDA]: Iniciando flujo de bienvenida personalizada');
+                await flowDynamic('Procesando tu consulta...');
 
-                    resolve('timeout');
+                // Obtener el historial actual o inicializar un array vacío
+                const currentState = await state.getMyState() || {}
+                const history = currentState.history || []
+                const name = ctx?.pushName ?? ""
 
-                    currentTimeoutId = null;
+                // Registrar mensaje del usuario
+                history.push({
+                    role: "user",
+                    content: ctx.body || "bienvenida"
+                })
 
-                    return endFlow();
+                // Crear una promesa para la respuesta de OpenAI
+                const responsePromise = await run(name, history);
 
-                }, TIMEOUT_DURATION);
-            });
+                console.log('[RESPUESTA DE OPENAI]: ', responsePromise);
 
-            // Crear una promesa para la respuesta de OpenAI
-            const responsePromise = run(name, history);
+                const chunks = responsePromise.split(/(?<!\d)\.\s+/g);
 
-            // Usar Promise.race para ver cuál termina primero
-            const result = await Promise.race([
-                responsePromise,
-                timeoutPromise
-            ]);
+                for (const chunk of chunks) {
+                    await flowDynamic(chunk)
+                }
 
-            // Si el resultado es 'timeout', terminar el flujo
-            if (result === 'timeout') {
-                console.log("[TIMEOUT]: Finalizando flujo por inactividad");
-                return endFlow();
+                history.push({
+                    role: "assistant",
+                    content: responsePromise
+                })
+                
             }
 
-            // Si llegamos aquí, significa que obtuvimos una respuesta antes del timeout
-            const largeResponse = result;
-
-            const chunks = largeResponse.split(/(?<!\d)\.\s+/g);
-
-            for (const chunk of chunks) {
-                await flowDynamic(chunk)
+            if (promtp.toLowerCase().includes('programas')) {
+                await flowDynamic('Consultando información de programas...');
+                return gotoFlow(flowProgramas);
             }
-
-            history.push({
-                role: "assistant",
-                content: largeResponse
-            })
-
-            await state.update({
-                history,
-                lastActivity: Date.now()
-            })
 
         } catch (error) {
             console.log(`[ERROR]: `, error);
             await flowDynamic("Lo siento, ha ocurrido un error. Por favor, intenta nuevamente más tarde.");
             return endFlow();
         }
-    })
-    
-
+    })    

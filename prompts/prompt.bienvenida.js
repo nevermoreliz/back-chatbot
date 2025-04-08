@@ -32,32 +32,32 @@ DIRECTRICES PARA RESPONDER AL USUARIO:
  * @param {string} message - Mensaje inicial del usuario
  * @returns {string} - Prompt personalizado
  */
-const generatePromptBienvenida = (name) => {
-    return PROMPT_BIENVENIDA
-        .replaceAll('{customer_name}', name)       ;
+const generatePromptBienvenida = (nombreUsuario) => {
+  return PROMPT_BIENVENIDA
+    .replaceAll('{customer_name}', nombreUsuario);
 }
 
 const PROMPT_DETERMINA_DECICION = `
-Eres un asistente de clasificación para Posgrado UPEA. Tu única tarea es determinar qué opción ha seleccionado el usuario basándote en su mensaje.
+Eres un asistente de clasificación para Posgrado UPEA. Tu única tarea es determinar la intención del usuario al inicio de la conversación basándote en su mensaje.
 ------
 MENSAJE_DEL_USUARIO="{user_message}"
 
 INSTRUCCIONES:
-- Analiza el mensaje del usuario y determina si está seleccionando una de las siguientes opciones:
+- Analiza cuidadosamente el mensaje inicial del usuario para determinar si está interesado en una de estas tres categorías específicas:
   1. Programas
   2. Consulta de trámites
   3. Soporte plataforma educativa Posgrado UPEA
 
-- El usuario puede seleccionar una opción usando el número (1, 2, 3) o escribiendo el texto similar a la opción.
+- Responde ÚNICAMENTE con el texto exacto de una de estas opciones:
+  - Si el usuario menciona o pregunta sobre programas académicos, cursos, maestrías, doctorados, diplomados, especialidades, o educación: responde "Programas"
+  - Si el usuario menciona o pregunta sobre trámites, documentos, requisitos, procesos administrativos, inscripciones, matrículas: responde "Consulta de trámites"
+  - Si el usuario menciona o pregunta sobre soporte técnico, ayuda con la plataforma, problemas de acceso, sistema educativo virtual: responde "Soporte plataforma educativa Posgrado UPEA"
 
-- Responde ÚNICAMENTE con una de estas opciones exactas:
-  - Si seleccionó la opción 1 o mencionó programas/cursos/maestrías/doctorados: responde "Programas"
-  - Si seleccionó la opción 2 o mencionó trámites/documentos/requisitos: responde "Consulta de trámites"
-  - Si seleccionó la opción 3 o mencionó soporte/ayuda/plataforma/sistema: responde "Soporte plataforma educativa Posgrado UPEA"
+- Si el mensaje del usuario no se relaciona claramente con ninguna de las tres opciones anteriores o es ambiguo, responde ÚNICAMENTE con "unknown".
+- No intentes forzar una clasificación si no hay una relación clara con alguna de las opciones.
+- Si el usuario solo saluda sin indicar su intención (como "hola", "buenos días", etc.), responde "unknown".
 
-- Si el mensaje no se relaciona claramente con ninguna opción, determina cuál es la más cercana a la intención del usuario.
-
-- Tu respuesta debe ser EXACTAMENTE una de las tres opciones, sin añadir ningún otro texto, explicación o saludo.
+- Tu respuesta debe ser EXACTAMENTE una de las tres opciones o "unknown", sin añadir ningún otro texto, explicación o saludo.
 - No uses formato markdown ni asteriscos.
 - No añadas puntuación adicional.
 - No incluyas comillas.
@@ -69,11 +69,11 @@ INSTRUCCIONES:
  * @returns {string} - Prompt personalizado
  */
 const generatePromptDecision = (message) => {
-    return PROMPT_DETERMINA_DECICION
-        .replaceAll('{user_message}', message);
+  return PROMPT_DETERMINA_DECICION
+    .replaceAll('{user_message}', message);
 }
 
-module.exports = { 
-    generatePromptBienvenida,
-    generatePromptDecision
+module.exports = {
+  generatePromptBienvenida,
+  generatePromptDecision
 }
