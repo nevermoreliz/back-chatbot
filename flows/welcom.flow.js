@@ -1,21 +1,35 @@
 const { addKeyword, EVENTS } = require("@bot-whatsapp/bot")
 const { run, runDetermineFlow } = require("../provider/agents/openai.class");
 
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
 const flowProgramas = require("./programas.flow");
 
 module.exports = addKeyword(EVENTS.WELCOME)
-    .addAction(async (ctx, { flowDynamic, state, endFlow, gotoFlow }) => {
+    .addAction(async (ctx, { flowDynamic, state, endFlow, gotoFlow, provider }) => {
         try {
 
             // Obtener el historial actual o inicializar un array vacío
             const currentState = await state.getMyState() || {}
             const history = currentState.history || []
 
-            const promtp = await runDetermineFlow(ctx.body, history)
+            // Activar efecto de escritura
+            const jid= ctx.key.remoteJid;
+            const refProvider = await provider.getInstance();
+
+            // await refProvider.presenceSubscribe(jid);
+            // await delay(100);
+            await refProvider.sendPresenceUpdate('composing', jid);
+
             
+
+            const promtp = await runDetermineFlow(ctx.body, history)
+
             console.log(`[PROMPT DETERMINAR]: `, promtp);
 
             if (promtp.toLowerCase().includes('unknown')) {
+
+
                 await flowDynamic('Iniciando asistente general...');
                 // Usamos gotoFlow y luego finalizamos este flujo
 
@@ -48,10 +62,11 @@ module.exports = addKeyword(EVENTS.WELCOME)
                     role: "assistant",
                     content: responsePromise
                 })
-                
+
             }
 
             if (promtp.toLowerCase().includes('programas')) {
+
                 await flowDynamic('Consultando información de programas...');
                 return gotoFlow(flowProgramas);
             }

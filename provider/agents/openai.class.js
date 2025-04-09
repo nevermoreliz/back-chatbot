@@ -59,7 +59,7 @@ const runDetermineFlow = async (mensajeUsuario, history = []) => {
             ],
             // model: "qwen/qwq-32b:free",
             model: process.env.MODEL_API_IA,
-            temperature: 1,
+            temperature: 0.5,
             max_tokens: 800,
             top_p: 1,
             frequency_penalty: 0,
