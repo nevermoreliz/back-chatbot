@@ -20,8 +20,7 @@ const flowConfirmar = addKeyword('si confirmo').addAnswer('Continuamos con tu Re
 module.exports = addKeyword('programas')
     .addAnswer(
         [
-            '🙌 Hola bienvenido.',
-            ''
+            'Agradezco su interés en nuestra oferta académica. En Posgrado UPEA ofrecemos los siguientes programas:'
         ],
         null,
         async () => {
@@ -30,11 +29,12 @@ module.exports = addKeyword('programas')
     )
     .addAnswer(
         [
-            'Soy Nova tu *asistente virtual de Posgrado UPEA*.',
-            'Gracias por comunicarte conmigo.',
-            '',
-            // 'Pregunta lo que Quieras?'
-            'para cuando quieres reservar la cita?'
+            `
+            1. Diplomados: Formación intensiva de 3 a 6 meses.
+            2. Especialidades: Especialización profesional.
+            3. Maestrías: Posgrados con enfoque profesional o investigativo.
+            4. Doctorados: Programas de investigación.
+            5. Postdoctorados: Proyectos avanzados para investigadores titulados.`,
         ],
         { capture: true },
         async (ctx, { flowDynamic, fallBack }) => {

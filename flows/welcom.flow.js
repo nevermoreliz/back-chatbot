@@ -12,47 +12,67 @@ module.exports = addKeyword(EVENTS.WELCOME)
             // Obtener el historial actual o inicializar un array vacío
             const currentState = await state.getMyState() || {}
             const history = currentState.history || []
+            // const history = (currentState.history || []).map(msg => ({
+            //     role: msg.role,
+            //     content: msg.content
+            // }));
+
+
 
             // Activar efecto de escritura
-            const jid= ctx.key.remoteJid;
+            const jid = ctx.key.remoteJid;
             const refProvider = await provider.getInstance();
 
-            // await refProvider.presenceSubscribe(jid);
-            // await delay(100);
+            await refProvider.presenceSubscribe(jid);
+            // await delay(500);
             await refProvider.sendPresenceUpdate('composing', jid);
 
-            
+            // Registrar el mensaje del usuario en el historial antes de determinar el flujo
+            if (ctx.body && ctx.body.trim() !== '') {
+                history.push({
+                    role: "user",
+                    content: ctx.body
+                });
+            }
 
             const promtp = await runDetermineFlow(ctx.body, history)
 
             console.log(`[PROMPT DETERMINAR]: `, promtp);
 
+            console.log('[HISTORIAL]: ', history);
+
             if (promtp.toLowerCase().includes('unknown')) {
 
-
-                await flowDynamic('Iniciando asistente general...');
-                // Usamos gotoFlow y luego finalizamos este flujo
-
                 console.log('[FLUJO BIENVENIDA]: Iniciando flujo de bienvenida personalizada');
+
+                await refProvider.presenceSubscribe(jid);
+                await delay(1000);
+                await refProvider.sendPresenceUpdate('composing', jid);
+
                 await flowDynamic('Procesando tu consulta...');
 
-                // Obtener el historial actual o inicializar un array vacío
-                const currentState = await state.getMyState() || {}
-                const history = currentState.history || []
+
+
                 const name = ctx?.pushName ?? ""
 
                 // Registrar mensaje del usuario
-                history.push({
-                    role: "user",
-                    content: ctx.body || "bienvenida"
-                })
+                // history.push({
+                //     role: "user",
+                //     content: ctx.body
+                // })
+
 
                 // Crear una promesa para la respuesta de OpenAI
                 const responsePromise = await run(name, history);
 
+                await refProvider.presenceSubscribe(jid);
+                await delay(1000);
+                await refProvider.sendPresenceUpdate('composing', jid);
+
                 console.log('[RESPUESTA DE OPENAI]: ', responsePromise);
 
                 const chunks = responsePromise.split(/(?<!\d)\.\s+/g);
+
 
                 for (const chunk of chunks) {
                     await flowDynamic(chunk)
@@ -63,10 +83,15 @@ module.exports = addKeyword(EVENTS.WELCOME)
                     content: responsePromise
                 })
 
+
+                // Actualizar el historial en el estado
+                await state.update({ history });
             }
 
             if (promtp.toLowerCase().includes('programas')) {
-
+                await state.update({
+                    history
+                });
                 await flowDynamic('Consultando información de programas...');
                 return gotoFlow(flowProgramas);
             }

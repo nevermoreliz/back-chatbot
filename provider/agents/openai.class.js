@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const { ChatCompletionMessageParam } = require("openai/resources");
 const { generatePrompt } = require("../../prompts/promt.incial");
 const { generatePromptBienvenida, generatePromptDecision } = require("../../prompts/prompt.bienvenida");
 
@@ -11,8 +12,8 @@ const openai = new OpenAI({
 
 /**
  * 
- * @param {string} name
- * @param {Array} history 
+ * @param {string} name - Nombre del usuario
+ * @param {Array<{role: string, content: string}>} history - Historial de mensajes en formato ChatCompletionMessageParam
  * @returns {Promise<string>}
  */
 const run = async (name, history = []) => {
@@ -30,8 +31,8 @@ const run = async (name, history = []) => {
             ...history
         ],
         model: process.env.MODEL_API_IA,
-        temperature: 1,
-        max_tokens: 800,
+        temperature: 0,
+        max_tokens: 150,
         top_p: 1,
         frequency_penalty: 0,
         presence_penalty: 0,
@@ -59,8 +60,8 @@ const runDetermineFlow = async (mensajeUsuario, history = []) => {
             ],
             // model: "qwen/qwq-32b:free",
             model: process.env.MODEL_API_IA,
-            temperature: 0.5,
-            max_tokens: 800,
+            temperature: 0,
+            max_tokens: 300,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0,
