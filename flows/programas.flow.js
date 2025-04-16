@@ -17,15 +17,11 @@ const flowConfirmar = addKeyword('si confirmo').addAnswer('Continuamos con tu Re
  * const C = opcional: es una funcion callback function!
  * const D = opcional: es un array de flujos hijos!
  */
-module.exports = addKeyword('programas')
+module.exports = addKeyword('programas', EVENTS.ACTION)
     .addAnswer(
         [
             'Agradezco su interés en nuestra oferta académica. En Posgrado UPEA ofrecemos los siguientes programas:'
-        ],
-        null,
-        async () => {
-            await ChatGPTInstance.handleMsgChatGPT(PROMP)
-        }
+        ]
     )
     .addAnswer(
         [
@@ -35,25 +31,6 @@ module.exports = addKeyword('programas')
             3. Maestrías: Posgrados con enfoque profesional o investigativo.
             4. Doctorados: Programas de investigación.
             5. Postdoctorados: Proyectos avanzados para investigadores titulados.`,
-        ],
-        { capture: true },
-        async (ctx, { flowDynamic, fallBack }) => {
-
-            /**
-             * lo que la persona escribe esta en ctx.body
-             */
-
-            const response = await ChatGPTInstance.handleMsgChatGPT(ctx.body)
-
-            // ya tengo la respuesta
-            const message = response.text
-            /**
-             * fallBack : es como un ciclo
-             */
-            if (ctx.body.toUpperCase() !== 'si confirmo') {
-
-                return fallBack(message)
-            }
-        },
-        [flowConfirmar]
+        ]
+      
     )

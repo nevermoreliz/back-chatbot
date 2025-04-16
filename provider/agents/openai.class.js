@@ -16,7 +16,7 @@ const openai = new OpenAI({
  * @param {Array<{role: string, content: string}>} history - Historial de mensajes en formato ChatCompletionMessageParam
  * @returns {Promise<string>}
  */
-const run = async (name, history = []) => {
+const run = async (name, history) => {
 
     const promtp = generatePromptBienvenida(name)
     //  console.log(`[PROMPT]: ${promtp}`);
@@ -45,10 +45,11 @@ const run = async (name, history = []) => {
  * @param {Array} history
  * @returns {Promise<string>}
  */
-const runDetermineFlow = async (mensajeUsuario, history = []) => {
+const runDetermineFlow = async (mensajeUsuario, history) => {
 
     try {
         const promtp = generatePromptDecision(mensajeUsuario)
+
         const response = await openai.chat.completions.create({
             // model: "gpt-3.5-turbo",
             messages: [
@@ -72,11 +73,13 @@ const runDetermineFlow = async (mensajeUsuario, history = []) => {
         /* ------------------------ este es el que se utiliza ----------------------- */
         // return response.choices.length > 0 && response.choices[0].message.content ? response.choices[0].message.content : 'unknown'
 
+         // Verificar que la respuesta tenga el formato esperado
         if (response && response.choices && response.choices.length > 0 && response.choices[0].message) {
-            return response.choices[0].message.content;
+            const content = response.choices[0].message.content.trim();
+            return content;
         } else {
-            console.log("[ADVERTENCIA]: ", response.error.message);
-            return 'Lo siento, no puedo procesar tu solicitud en este momento.';
+            console.log("[ADVERTENCIA]: Respuesta de la API incompleta o inesperada");
+            return 'unknown';
         }
 
     } catch (error) {

@@ -23,7 +23,6 @@ const main = async () => {
   //   console.error('Unable to connect to the database:', error);
   // }
 
-
   /**
   * con el adaptador sequelize
   */
@@ -41,7 +40,8 @@ const main = async () => {
   const adapterFlow = createFlow([welcomFlow])
 
   const adapterProvider = createProvider(BaileysProvider)
-  const serverBotApi = new ServerBotAPI(adapterProvider, adapterDB)
+  // const serverBotApi = new ServerBotAPI(adapterProvider, adapterDB)
+  const serverBotApi = new ServerBotAPI(adapterProvider, adapterSequelizeDB)
 
   createBot({
     flow: adapterFlow,

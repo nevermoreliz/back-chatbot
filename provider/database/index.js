@@ -1,6 +1,6 @@
 require("dotenv").config();
 const PostgreSQLAdapter = require('@bot-whatsapp/database/postgres')
-const { Sequelize } = require("sequelize");
+const { Sequelize, DataTypes } = require("sequelize");
 
 /**
  * Declaramos las conexiones de PostgreSQL

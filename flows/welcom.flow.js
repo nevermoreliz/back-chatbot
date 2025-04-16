@@ -1,104 +1,74 @@
-const { addKeyword, EVENTS } = require("@bot-whatsapp/bot")
-const { run, runDetermineFlow } = require("../provider/agents/openai.class");
-
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-
+const { addKeyword, EVENTS } = require("@bot-whatsapp/bot");
+const { runDetermineFlow } = require("../provider/agents/openai.class");
 const flowProgramas = require("./programas.flow");
 
 module.exports = addKeyword(EVENTS.WELCOME)
-    .addAction(async (ctx, { flowDynamic, state, endFlow, gotoFlow, provider }) => {
-        try {
+    .addAnswer(
+        ['Buenos días/tardes, bienvenido(a) a EduBot, el asistente avanzado con inteligencia artificial de Posgrado UPEA.',
+            'Mi propósito es ofrecerle información precisa y personalizada sobre nuestros programas académicos: Diplomados, Especialidades, Maestrías, Doctorados y Postdoctorados.']
+    )
+    .addAnswer(
+        ['¿Cómo puedo ayudarle hoy?',
+            '',
+            '*1. Consultar programas:* Conozca nuestra oferta académica.',
+            '*2. Requisitos de inscripción:* Infórmese sobre el proceso.',
+            '*3. Contactar a un asesor:* Solicite asistencia personalizada.',
+            '*4. Hacer una pregunta:* Ejemplo: "¿Qué Maestrías ofrecen?"'],
+        { capture: true },
+        async (ctx, { flowDynamic, gotoFlow, state }) => {
+            try {
+                console.log(`[aqui 🟡🟡]:`);
 
-            // Obtener el historial actual o inicializar un array vacío
-            const currentState = await state.getMyState() || {}
-            const history = currentState.history || []
-            // const history = (currentState.history || []).map(msg => ({
-            //     role: msg.role,
-            //     content: msg.content
-            // }));
+                // Obtener el historial actual o inicializar un array vacío
+                const currentState = await state.getMyState() || {}
+                const history = currentState.history || []
 
-
-
-            // Activar efecto de escritura
-            const jid = ctx.key.remoteJid;
-            const refProvider = await provider.getInstance();
-
-            await refProvider.presenceSubscribe(jid);
-            // await delay(500);
-            await refProvider.sendPresenceUpdate('composing', jid);
-
-            // Registrar el mensaje del usuario en el historial antes de determinar el flujo
-            if (ctx.body && ctx.body.trim() !== '') {
+                // Registrar el mensaje del usuario en el historial
                 history.push({
                     role: "user",
                     content: ctx.body
                 });
-            }
 
-            const promtp = await runDetermineFlow(ctx.body, history)
+                // Guardar el mensaje del usuario en una variable para búsqueda
+                const userResponse = ctx.body.toLowerCase();
 
-            console.log(`[PROMPT DETERMINAR]: `, promtp);
+                // Determinar el flujo usando la IA
+                const decisionRaw = await runDetermineFlow(ctx.body, history);
+                console.log(`[DECISIÓN IA RAW]: ${decisionRaw}`);
 
-            console.log('[HISTORIAL]: ', history);
-
-            if (promtp.toLowerCase().includes('unknown')) {
-
-                console.log('[FLUJO BIENVENIDA]: Iniciando flujo de bienvenida personalizada');
-
-                await refProvider.presenceSubscribe(jid);
-                await delay(1000);
-                await refProvider.sendPresenceUpdate('composing', jid);
-
-                await flowDynamic('Procesando tu consulta...');
-
-
-
-                const name = ctx?.pushName ?? ""
-
-                // Registrar mensaje del usuario
-                // history.push({
-                //     role: "user",
-                //     content: ctx.body
-                // })
-
-
-                // Crear una promesa para la respuesta de OpenAI
-                const responsePromise = await run(name, history);
-
-                await refProvider.presenceSubscribe(jid);
-                await delay(1000);
-                await refProvider.sendPresenceUpdate('composing', jid);
-
-                console.log('[RESPUESTA DE OPENAI]: ', responsePromise);
-
-                const chunks = responsePromise.split(/(?<!\d)\.\s+/g);
-
-
-                for (const chunk of chunks) {
-                    await flowDynamic(chunk)
-                }
-
-                history.push({
-                    role: "assistant",
-                    content: responsePromise
-                })
-
+                const decision = String(decisionRaw).trim();
+                console.log(`[DECISIÓN IA PROCESADA]: ${decision}`);
 
                 // Actualizar el historial en el estado
-                await state.update({ history });
+                // await state.update({
+                //     history,
+                // });
+
+                // Mapeo de decisiones a flujos
+                const flowMap = {
+                    "1": { flow: flowProgramas, message: 'Consultando información de programas...' },
+                    // "2": { flow: flowRequisitos, message: 'Consultando requisitos de inscripción...' },
+                    // "3": { flow: flowAsesor, message: 'Conectando con un asesor...' },
+                    // "4": { flow: flowPreguntas, message: 'Procesando tu pregunta...' }
+                };
+
+                // Buscar coincidencia por decisión de IA o por número en el mensaje
+                const selectedOption = flowMap[decision] ||
+                    (userResponse.includes("1") ? flowMap["1"] : null);
+
+                if (selectedOption) {
+
+                    await flowDynamic(selectedOption.message);
+                    return gotoFlow(selectedOption.flow);
+                } else {
+                    // Si no se reconoce la intención, pedir clarificación
+                    await flowDynamic('Por favor, seleccione una de las opciones disponibles (1-4) o formule su consulta de manera más específica.');
+                }
+
+            } catch (error) {
+                console.error(`[ERROR]: ${error}`);
+                await flowDynamic('Lo siento, ha ocurrido un error. Por favor, intente nuevamente.');
             }
 
-            if (promtp.toLowerCase().includes('programas')) {
-                await state.update({
-                    history
-                });
-                await flowDynamic('Consultando información de programas...');
-                return gotoFlow(flowProgramas);
-            }
-
-        } catch (error) {
-            console.log(`[ERROR]: `, error);
-            await flowDynamic("Lo siento, ha ocurrido un error. Por favor, intenta nuevamente más tarde.");
-            return endFlow();
         }
-    })    
+    )
